@@ -1,7 +1,10 @@
 package kafkathena_gox
 
 import (
-	"fmt"
+	"github.com/fsnotify/fsnotify"
+	"go.uber.org/zap"
+	"os"
+	"sync"
 
 	"github.com/spf13/viper"
 )
@@ -113,22 +116,49 @@ type IntegrationTopic struct {
 	ProducerNames []string `mapstructure:"producer-names"`
 }
 
+var mu = sync.Mutex{}
+
 // LoadConfig, "application.yaml" (ya da başka format) dosyasını mevcut çalışma dizininde arar,
 // konfigürasyonu yükler ve RootConfig tipinde döner.
 func LoadConfig() (*RootConfig, error) {
-	v := viper.New()
-	v.SetConfigName("application") // dosya adı: application.yaml (uzantısız)
-	v.AddConfigPath(".")           // geçerli dizinde arar
-	v.AutomaticEnv()               // environment değişkenlerini de kullanır
+	//v := viper.New()
+	//v.SetConfigName("application") // dosya adı: application.yaml (uzantısız)
+	//v.AddConfigPath(".")           // geçerli dizinde arar
+	//v.AutomaticEnv()               // environment değişkenlerini de kullanır
+	//
+	//if err := v.ReadInConfig(); err != nil {
+	//	return nil, fmt.Errorf("konfigürasyon dosyası okunamadı: %w", err)
+	//}
+	//
+	//var config RootConfig
+	//if err := v.Unmarshal(&config); err != nil {
+	//	return nil, fmt.Errorf("konfigürasyon ayrıştırılırken hata: %w", err)
+	//}
 
-	if err := v.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("konfigürasyon dosyası okunamadı: %w", err)
+	viper.SetConfigName("config")
+	viper.AddConfigPath(os.Getenv("CONFIG_FILE_PATH"))
+
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, err
 	}
 
-	var config RootConfig
-	if err := v.Unmarshal(&config); err != nil {
-		return nil, fmt.Errorf("konfigürasyon ayrıştırılırken hata: %w", err)
+	cfg := new(RootConfig)
+	if err := viper.Unmarshal(cfg); err != nil {
+		return nil, err
 	}
 
-	return &config, nil
+	if err := viper.Unmarshal(cfg); err != nil {
+		return nil, err
+	}
+
+	viper.WatchConfig()
+	viper.OnConfigChange(func(in fsnotify.Event) {
+		mu.Lock()
+		if err := viper.Unmarshal(cfg); err != nil {
+			zap.L().Error("error when refreshing the config", zap.Error(err))
+		}
+		mu.Unlock()
+	})
+
+	return cfg, nil
 }
