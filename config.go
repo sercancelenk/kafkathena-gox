@@ -136,6 +136,7 @@ func LoadConfig() (*RootConfig, error) {
 	//}
 
 	viper.SetConfigName("kafkathena")
+	viper.SetConfigType("yaml")
 	viper.AddConfigPath(os.Getenv("CONFIG_FILE_PATH"))
 
 	if err := viper.ReadInConfig(); err != nil {
