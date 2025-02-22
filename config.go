@@ -135,7 +135,7 @@ func LoadConfig() (*RootConfig, error) {
 	//	return nil, fmt.Errorf("konfigürasyon ayrıştırılırken hata: %w", err)
 	//}
 
-	viper.SetConfigName("config")
+	viper.SetConfigName("kafkathena")
 	viper.AddConfigPath(os.Getenv("CONFIG_FILE_PATH"))
 
 	if err := viper.ReadInConfig(); err != nil {
